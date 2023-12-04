@@ -1,125 +1,105 @@
-(function ($) {
-  "use strict";
+$(document).ready(function () {
+  // Variabel global untuk melacak ID terakhir
+  let lastTaskId = 0;
 
   var fullHeight = function () {
     $(".js-fullheight").css("height", $(window).height());
-    $(window).resize(function () {
-      $(".js-fullheight").css("height", $(window).height());
-    });
   };
+
   fullHeight();
+
+  $(window).resize(function () {
+    fullHeight();
+  });
 
   $("#sidebarCollapse").on("click", function () {
     $("#sidebar").toggleClass("active");
   });
-})(jQuery);
 
-let todoColumn = document.getElementById("todo");
-
-// Load data menggunakan XMLHTTPRequest
-window.onload = function () {
-  let xhr = new XMLHttpRequest();
-  let url = "../data/data-task.json";
-
-  xhr.onreadystatechange = function () {
-    if (this.readyState == 4 && this.status == 200) {
-      let responses = JSON.parse(this.response);
+  // Gunakan Fetch API untuk memuat data
+  fetch("../data/data-task.json")
+    .then((response) => response.json())
+    .then((responses) => {
       responses.forEach((response) => {
-        // Membuat elemen-elemen HTML yang akan menampilkan tugas
-        let article = document.createElement("article");
-        let badgeDelete = document.createElement("button");
-        let badgeEdit = document.createElement("button");
-        let p = document.createElement("p");
-        let h4 = document.createElement("h4");
+        // Update ID terakhir
+        lastTaskId = Math.max(lastTaskId, response.id);
 
-        // Menetapkan teks judul dan deskripsi dari respons JSON ke elemen-elemen HTML
-        h4.innerHTML = response.title;
-        p.innerHTML = response.desc;
+        // Membuat elemen-elemen HTML yang akan menampilkan task
+        let article = $("<article>").addClass("border p-2 m-3 drag");
+        article.attr("id", response.id);
 
-        // Mengatur atribut dan properti elemen <article>
-        article.setAttribute("class", "border p-2 m-3 drag");
-        article.setAttribute("ondragstart", "drag(event)");
-        article.setAttribute("draggable", "true");
-        article.setAttribute("id", response.id);
+        // Membuat elemen-elemen HTML
+        let badgeDelete = $("<button>")
+          .addClass(
+            "badge bg-danger link-underline link-underline-opacity-0 mr-3"
+          )
+          .attr({
+            id: "btn-delete-" + response.id,
+            onclick: "deleteTask(this.id)",
+            "data-bs-toggle": "modal",
+            "data-bs-target": "#modalDelete",
+          })
+          .text("Delete");
 
-        // Mengatur atribut dan properti elemen tombol hapus
-        badgeDelete.setAttribute(
-          "class",
-          "badge bg-danger link-underline link-underline-opacity-0 mr-3"
-        );
-        badgeDelete.setAttribute("id", "delete-" + response.id);
-        badgeDelete.setAttribute("onclick", "deleteTask(this.id)");
+        let badgeEdit = $("<button>")
+          .addClass(
+            "badge bg-info link-underline link-underline-opacity-0 mr-3"
+          )
+          .attr({
+            id: "btn-edit-" + response.id,
+            onclick: "editTask(this)",
+            "data-bs-toggle": "modal",
+            "data-bs-target": "#modalEdit",
+          })
+          .text("Edit");
 
-        // Menambahkan
-        badgeDelete.setAttribute("data-bs-toggle", "modal");
-        badgeDelete.setAttribute("data-bs-target", "#modalDelete");
-
-        // Mengatur atribut dan properti elemen tombol edit
-        badgeEdit.setAttribute(
-          "class",
-          "badge bg-info link-underline link-underline-opacity-0 mr-3"
-        );
-        badgeEdit.setAttribute("id", "edit-" + response.id);
-        badgeEdit.setAttribute("onclick", "editTask(this)");
-
-        // Menambahkan
-        badgeEdit.setAttribute("data-bs-toggle", "modal");
-        badgeEdit.setAttribute("data-bs-target", "#modalEdit");
+        let h4 = $("<h4>").text(response.title);
+        let p = $("<p>").text(response.desc);
 
         // Menambahkan elemen-elemen ke dalam elemen <article>
-        article.appendChild(h4);
-        article.appendChild(p);
-        article.appendChild(badgeDelete);
-        article.appendChild(badgeEdit);
-
-        // Menambahkan teks ke dalam tombol hapus dan edit
-        badgeDelete.appendChild(document.createTextNode("Delete"));
-        badgeEdit.appendChild(document.createTextNode("Edit"));
+        article.append(h4, p, badgeDelete, badgeEdit);
 
         // Menyisipkan elemen <article> ke dalam elemen yang menampung tugas (todoColumn)
-        todoColumn.appendChild(article);
+        $("#todo").append(article);
       });
-    }
-  };
-  xhr.open("GET", url, true);
-  xhr.send();
-};
+    })
+    .catch((error) => console.error("Error fetching data:", error));
 
-// Fungsi Add Task
-document.addEventListener("DOMContentLoaded", function () {
+  // Fungsi Add Task
   const modalAdd = new bootstrap.Modal(document.getElementById("modalAdd"));
-  const btnAdd = document.getElementById("btn-add");
-  const btnAddTask = document.querySelector("#modalAdd button.btn-primary");
-  const titleInput = document.getElementById("task-title");
-  const descriptionInput = document.getElementById("task-description");
+  const btnAdd = $("#btn-add");
+  const btnAddTask = $("#modalAdd button.btn-primary");
+  const titleInput = $("#task-title");
+  const descriptionInput = $("#task-description");
 
-  btnAdd.addEventListener("click", function () {
+  btnAdd.on("click", function () {
     modalAdd.show();
   });
 
-  btnAddTask.addEventListener("click", function () {
-    const title = titleInput.value.trim();
-    const description = descriptionInput.value.trim();
+  btnAddTask.on("click", function () {
+    const title = titleInput.val().trim();
+    const description = descriptionInput.val().trim();
 
     if (title !== "" && description !== "") {
-      // Buat elemen artikel baru untuk tugas
-      const newTask = document.createElement("article");
-      newTask.classList.add("border", "p-2", "m-3", "drag");
-      newTask.innerHTML = `
-        <h4>${title}</h4>
-        <p>${description}</p>
-        <button class="badge bg-danger link-underline link-underline-opacity-0 mr-3" data-bs-toggle="modal"
-        data-bs-target="#modalDelete" onclick="deleteTask(this)">Delete</button>
-        <button class="badge bg-info link-underline link-underline-opacity-0 mr-3" data-bs-toggle="modal"
-        data-bs-target="#modalEdit" onclick="editTask(this)">Edit</button>
-      `;
+      // Increment ID terakhir untuk mendapatkan ID baru
+      lastTaskId++;
+      const newTask = $("<article>")
+        .addClass("border p-2 m-3 drag")
+        .attr("id", lastTaskId).html(`
+            <h4>${title}</h4>
+            <p>${description}</p>
+            <button class="badge bg-danger link-underline link-underline-opacity-0 mr-3" data-bs-toggle="modal"
+                data-bs-target="#modalDelete" onclick="deleteTask(this)" id="btn-delete-${lastTaskId}">Delete</button>
+            <button class="badge bg-info link-underline link-underline-opacity-0 mr-3" data-bs-toggle="modal"
+                data-bs-target="#modalEdit" onclick="editTask(this)" id="btn-edit-${lastTaskId}">Edit</button>
+        `);
 
       // Tambahkan tugas baru ke kolom "Todo"
-      todoColumn.appendChild(newTask);
+      $("#todo").append(newTask);
 
       // Kosongkan input setelah menambahkan tugas
-      titleInput.value = "";
-      descriptionInput.value = "";
+      titleInput.val("");
+      descriptionInput.val("");
 
       // Tutup modal setelah menambahkan tugas
       modalAdd.hide();
