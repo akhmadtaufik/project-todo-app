@@ -18,12 +18,21 @@ class Tasks(db.Model):
 
     def serialize(self):
         return {
-            "id": self.id,
+            "task_id": self.id,
             "task_name": self.task_name,
             "description": self.description,
             "due_date": self.due_date,
             "status": self.status,
             "project_id": self.project_id,
-            "created_at": self.created_at,
-            "update_at": self.update_at,
+            "created_at": str(self.created_at),
+            "update_at": str(self.update_at),
+        }
+
+    def basic_serialize(self):
+        return {
+            "task_name": self.task_name,
+            "description": self.description,
+            "due_date": self.due_date,
+            "status": self.status,
+            "update_at": str(self.update_at),
         }
