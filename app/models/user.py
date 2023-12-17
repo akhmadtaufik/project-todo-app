@@ -18,10 +18,17 @@ class Users(db.Model):
 
     def serialize(self):
         return {
-            "id": self.id,
+            "user_id": self.id,
             "username": self.username,
             "email": self.email,
             "created_at": str(self.created_at),
             "update_at": str(self.update_at),
             "project_list": [project.serialize() for project in self.projects],  # type: ignore
+        }
+
+    def basic_serialize(self):
+        return {
+            "username": self.username,
+            "email": self.email,
+            "update_at": str(self.update_at),
         }
