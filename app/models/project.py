@@ -14,15 +14,22 @@ class Projects(db.Model):
         db.TIMESTAMP, server_default=db.func.now(), onupdate=db.func.now()
     )
 
-    tasks = db.relationship("Task", backref="projects", cascade="all, delete-orphan")
+    tasks = db.relationship("Tasks", backref="projects", cascade="all, delete-orphan")
 
     def serialize(self):
         return {
-            "id": self.id,
+            "project_id": self.id,
             "project_name": self.project_name,
             "description": self.description,
             "user_id": self.user_id,
             "created_at": str(self.created_at),
             "update_at": str(self.created_at),
             "task": [task.serialize() for task in self.tasks],  # type: ignore
+        }
+
+    def basic_serialize(self):
+        return {
+            "project_name": self.project_name,
+            "description": self.description,
+            "update_at": str(self.created_at),
         }
