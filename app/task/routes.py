@@ -19,33 +19,36 @@ def generate_response(success, message, data=None, status_code=200):
     return jsonify(response_data), status_code
 
 
+def has_permission(user_id):
+    auth_projects = Projects.query.filter_by(user_id=user_id).all()
+    return bool(auth_projects) and str(user_id) == str(auth_projects[0].user_id)
+
+
+def is_valid_project(project_id, user_id):
+    auth_projects = Projects.query.filter_by(user_id=user_id).all()
+    projects = {project.id for project in auth_projects}
+    return project_id in projects
+
+
 @taskBP.route("/<int:project_id>/tasks", methods=["GET"], strict_slashes=False)
 @jwt_required(locations=["headers"])
 def get_all_task_by_project_id(project_id):
     try:
         current_user = get_jwt_identity()
 
-        # Query projects once and store the result
-        auth_projects = Projects.query.filter_by(user_id=current_user).all()
-
-        if not auth_projects or current_user != str(auth_projects[0].user_id):
-            response = generate_response(
+        if not has_permission(current_user):
+            return generate_response(
                 success=False,
                 message="You do not have permission to retrieve these tasks",
                 status_code=403,
             )
-            return response
 
-        projects = [project.id for project in auth_projects]
-
-        # Check if the project_id is valid
-        if project_id not in projects:
-            response = generate_response(
+        if not is_valid_project(project_id, current_user):
+            return generate_response(
                 success=False,
                 message="Task not found. Please verify the project ID",
-                status_code=404,
+                status_code=403,
             )
-            return response
 
         tasks = db.session.execute(
             db.select(Tasks)
@@ -72,22 +75,20 @@ def get_all_task_by_project_id(project_id):
         )
 
 
-@taskBP.route("/tasks", methods=["POST"], strict_slashes=False)
+@taskBP.route("/task", methods=["POST"], strict_slashes=False)
 @jwt_required(locations=["headers"])
 def create_task():
     try:
         current_user = get_jwt_identity()
 
-        auth_projects = Projects.query.filter_by(user_id=current_user).all()
-
-        if not auth_projects or current_user != str(auth_projects[0].user_id):
-            response = generate_response(
+        if not has_permission(current_user):
+            return generate_response(
                 success=False,
                 message="You do not have permission to create tasks",
                 status_code=403,
             )
-            return response
 
+        auth_projects = Projects.query.filter_by(user_id=current_user).all()
         projects = {project.id for project in auth_projects}
 
         data = request.get_json()
@@ -98,12 +99,11 @@ def create_task():
         input_project_id = data.get("project_id")
 
         if input_project_id not in projects:
-            response = generate_response(
+            return generate_response(
                 success=False,
                 message="Invalid project_id for creating a task",
                 status_code=403,
             )
-            return response
 
         if not all(
             (
@@ -114,12 +114,11 @@ def create_task():
                 input_project_id,
             )
         ):
-            response = generate_response(
+            return generate_response(
                 success=False,
                 message="Invalid parameters for creating a task",
                 status_code=422,
             )
-            return response
 
         # Date Validation: Check if due_date is not earlier than current date
         current_date = datetime.now().date()
@@ -155,30 +154,40 @@ def create_task():
         )
 
 
-@taskBP.route("/<int:id>", methods=["GET"], strict_slashes=False)
-def get_task_by_id(id):
+@taskBP.route(
+    "/<int:project_id>/task/<int:task_id>", methods=["PUT"], strict_slashes=False
+)
+@jwt_required(locations=["headers"])
+def update_task(project_id, task_id):
     try:
-        # Try to retrieve a specific task by ID
-        task = Tasks.query.get_or_404(id)
-        return generate_response(True, "Task retrieved successfully", task.serialize())
-    except SQLAlchemyError as e:
-        # Handle database error, rollback, and return an error response
-        db.session.rollback()
-        return generate_response(False, f"Error retrieving task: {str(e)}"), 500
+        current_user = get_jwt_identity()
 
+        if not has_permission(current_user):
+            return generate_response(
+                success=False,
+                message="You do not have permission to update tasks",
+                status_code=403,
+            )
 
-@taskBP.route("/<int:id>", methods=["PUT"], strict_slashes=False)
-def update_task(id):
-    try:
-        # Try to update a specific task by ID
+        if not is_valid_project(project_id, current_user):
+            return generate_response(
+                success=False,
+                message="Invalid project_id for updating a task",
+                status_code=403,
+            )
+
+        task = Tasks.query.filter_by(id=task_id).first()
+
+        if not task:
+            return generate_response(
+                success=False, message="Task not found", status_code=404
+            )
+
         data = request.get_json()
         input_task = data.get("task_name")
         input_description = data.get("description")
         input_due_date = data.get("due_date")
         input_status = data.get("status")
-        input_project_id = data.get("project_id")
-
-        task = Tasks.query.get_or_404(id)
 
         if not all(
             (
@@ -186,7 +195,6 @@ def update_task(id):
                 input_description,
                 input_due_date,
                 input_status,
-                input_project_id,
             )
         ):
             return generate_response(False, "Data not complete"), 422
@@ -195,12 +203,15 @@ def update_task(id):
         task.description = input_description
         task.due_date = input_due_date
         task.status = input_status
-        task.project_id = input_project_id
+        task.project_id = project_id
 
         db.session.commit()
 
         return generate_response(
-            True, "Task successfully updated", task.basic_serialize(), 201
+            success=True,
+            message="Task successfully updated",
+            data=task.basic_serialize(),
+            status_code=201,
         )
     except SQLAlchemyError as e:
         # Handle database error, rollback, and return an error response
@@ -208,15 +219,44 @@ def update_task(id):
         return generate_response(False, f"Error updating task: {str(e)}"), 500
 
 
-@taskBP.route("/<int:id>", methods=["DELETE"], strict_slashes=False)
-def delete_task(id):
+@taskBP.route(
+    "/<int:project_id>/task/<int:task_id>", methods=["DELETE"], strict_slashes=False
+)
+@jwt_required(locations=["headers"])
+def delete_task(project_id, task_id):
     try:
-        # Try to delete a specific task by ID
-        task = Tasks.query.get_or_404(id)
+        current_user = get_jwt_identity()
+
+        if not has_permission(current_user):
+            return generate_response(
+                success=False,
+                message="You do not have permission to delete tasks",
+                status_code=403,
+            )
+
+        if not is_valid_project(project_id, current_user):
+            return generate_response(
+                success=False,
+                message="Invalid project_id for deleting a task",
+                status_code=403,
+            )
+
+        task = Tasks.query.filter_by(id=task_id, project_id=project_id).first()
+
+        if not task:
+            return generate_response(
+                success=False, message="Task Not Found", status_code=404
+            )
+
         db.session.delete(task)
         db.session.commit()
 
-        return generate_response(True, "Task successfully deleted", status_code=204)
+        response = generate_response(
+            success=True, message="Task successfully deleted", status_code=204
+        )
+
+        return response
+
     except SQLAlchemyError as e:
         # Handle database error, rollback, and return an error response
         db.session.rollback()
