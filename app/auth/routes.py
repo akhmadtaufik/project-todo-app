@@ -1,6 +1,5 @@
 from app.auth import authBP
 from app.extensions import db, jwt
-from app.models.project import Projects
 from app.models.user import Users
 from flask import jsonify, request
 from flask_jwt_extended import (
@@ -16,6 +15,19 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 @authBP.route("/register", methods=["POST"], strict_slashes=False)
 def registration():
+    """
+    Register a new user.
+
+    This route handles user registration by receiving user data, validating it, and storing it in the database.
+
+    Args:
+        None
+
+    Returns:
+        response (tuple): A tuple containing the response object and the status code.
+            - Success: A response with status code 201 and a message indicating successful registration.
+            - Error: A response with status code 422 and a message indicating incomplete data or a duplicate email.
+    """
     data = request.get_json()
 
     input_name = data.get("name")
@@ -45,6 +57,19 @@ def registration():
 
 @authBP.route("/login", methods=["POST"], strict_slashes=False)
 def login():
+    """
+    Login with user credentials.
+
+    This route handles user login by verifying the user's credentials and generating access and refresh tokens.
+
+    Args:
+        None
+
+    Returns:
+        response (tuple): A tuple containing the response object and the status code.
+            - Success: A response with status code 200 and access and refresh tokens.
+            - Error: A response with status code 400 or 401 and an error message indicating incomplete data or invalid credentials.
+    """
     data = request.get_json()
 
     input_username = data.get("email")
@@ -88,6 +113,19 @@ def login():
 @authBP.route("/refresh", methods=["POST"], strict_slashes=False)
 @jwt_required(refresh=True)
 def refresh():
+    """
+    Refresh the access token.
+
+    This route refreshes the access token for an authenticated user.
+
+    Args:
+        None
+
+    Returns:
+        response (tuple): A tuple containing the response object and the status code.
+            - Success: A response with status code 200 and a new access token.
+            - Error: A response with status code 401 if the refresh token is invalid or expired.
+    """
     current_user = get_jwt_identity()
     new_token = {"access_token": create_access_token(identity=current_user)}
 
