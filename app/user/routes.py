@@ -2,8 +2,7 @@ from app.extensions import db
 from app.models.user import Users
 from app.user import userBP
 from flask import jsonify, request
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import SQLAlchemyError
 
 
 @userBP.route("/", methods=["GET"], strict_slashes=False)
@@ -28,62 +27,17 @@ def get_all_users():
 @userBP.route("/<int:user_id>", methods=["GET"], strict_slashes=False)
 def get_user_by_id(user_id):
     try:
-        # Query user by ID or return a 404 Not Found response
         user = Users.query.get_or_404(user_id)
+
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
         response = jsonify({"success": True, "data": user.serialize()})
+
         return response, 200
-    except NoResultFound:
-        # Return a 404 Not Found response if the user is not found
-        return jsonify({"success": False, "message": "User not found"}), 404
 
-
-@userBP.route("/", methods=["POST"], strict_slashes=False)
-def create_user():
-    # Extract data from JSON request
-    data = request.get_json()
-    input_username, input_email, input_password = (
-        data.get("username"),
-        data.get("email"),
-        data.get("password"),
-    )
-
-    # Validate input data
-    if not all((input_username, input_email, input_password)):
-        # Return a 422 Unprocessable Entity response for incomplete data
-        return jsonify({"error": "Incomplete data"}), 422
-
-    # Check email uniqueness before adding to the session
-    if is_email_taken(input_email):
-        # Return a 422 Unprocessable Entity response for existing email
-        return jsonify({"error": "Email already exists"}), 422
-
-    try:
-        # Create a new user and add to the session
-        new_user = Users(
-            username=input_username, email=input_email, password=input_password
-        )  # type: ignore
-        db.session.add(new_user)
-        db.session.commit()
-    except IntegrityError:
-        # Handle email uniqueness constraint violation with a rollback
-        db.session.rollback()
-        return jsonify({"error": "Email already exists"}), 422
-
-    # Return success response with the newly created user data
-    response = jsonify(
-        {
-            "success": True,
-            "data": new_user.serialize(),
-            "message": "Account successfully created",
-        }
-    )
-
-    return response, 201
-
-
-def is_email_taken(email):
-    """Check if the given email is already taken."""
-    return Users.query.filter_by(email=email).first() is not None
+    except SQLAlchemyError:
+        return jsonify({"error": "Database error"}), 500
 
 
 @userBP.route("/<int:user_id>", methods=["PUT"], strict_slashes=False)
@@ -125,9 +79,9 @@ def update_user(user_id):
     return response, 200
 
 
-def update_user_object(user, username, email, password):
+def update_user_object(user, name, email, password):
     # Update user properties with new values
-    user.username = username
+    user.name = name
     user.email = email
     user.password = password
 
