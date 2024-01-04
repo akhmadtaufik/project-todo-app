@@ -3,6 +3,7 @@ from app.models.project import Projects
 from app.models.user import Users
 from app.project import projectBP
 from flask import jsonify, request
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy.exc import SQLAlchemyError
 
 
@@ -14,32 +15,42 @@ def generate_response(success, message, data=None, status_code=200):
 
 
 @projectBP.route("/", methods=["GET"], strict_slashes=False)
+@jwt_required(locations=["headers"])
 def get_all_project():
     try:
         # Try to retrieve projects from the database
+        user_id = get_jwt_identity()
         limit = int(request.args.get("limit", 10))
-        projects = db.session.execute(db.select(Projects).limit(limit)).scalars()
+
+        projects = Projects.query.filter_by(user_id=user_id).limit(limit).all()
+
         results = [project.serialize() for project in projects]
-        return generate_response(True, "Projects retrieved successfully", results)
+
+        return generate_response(True, "Projects retrieved successfully", results, 200)
     except SQLAlchemyError as e:
         # Handle database error, rollback, and return an error response
         db.session.rollback()
-        return generate_response(False, f"Error retrieving projects: {str(e)}"), 500
+        return generate_response(
+            False, f"Error retrieving projects: {str(e)}", status_code=500
+        )
 
 
 @projectBP.route("/", methods=["POST"], strict_slashes=False)
+@jwt_required(locations=["headers"])
 def create_project():
     try:
         # Try to create a new project in the database
         data = request.get_json()
+
         input_project = data.get("project_name")
         input_description = data.get("description")
-        input_user_id = data.get("user_id")
+        input_user_id = get_jwt_identity()
 
         if not all((input_project, input_description, input_user_id)):
-            return (
-                generate_response(False, "Invalid parameters for creating a project"),
-                422,
+            return generate_response(
+                False,
+                "Invalid parameters for creating a project.",
+                status_code=422,
             )
 
         new_project = Projects(
@@ -56,10 +67,13 @@ def create_project():
     except SQLAlchemyError as e:
         # Handle database error, rollback, and return an error response
         db.session.rollback()
-        return generate_response(False, f"Error creating project: {str(e)}"), 500
+        return generate_response(
+            False, f"Error creating project: {str(e)}", status_code=500
+        )
 
 
 @projectBP.route("/<int:id>", methods=["GET"], strict_slashes=False)
+@jwt_required(locations=["headers"])
 def get_project_by_id(id):
     try:
         # Try to retrieve a specific project by ID
@@ -70,48 +84,89 @@ def get_project_by_id(id):
     except SQLAlchemyError as e:
         # Handle database error, rollback, and return an error response
         db.session.rollback()
-        return generate_response(False, f"Error retrieving project: {str(e)}"), 500
+        return generate_response(
+            False, f"Error retrieving project: {str(e)}", status_code=500
+        )
 
 
 @projectBP.route("/<int:id>", methods=["PUT"], strict_slashes=False)
+@jwt_required(locations=["headers"])
 def update_project(id):
     try:
         # Try to update a specific project by ID
+        current_user = get_jwt_identity()
+
+        project = Projects.query.filter_by(id=id).first()
+
+        if not project:
+            return generate_response(
+                False,
+                "Project not found. Please verify the project ID exists.",
+                status_code=404,
+            )
+
+        if current_user != str(project.user_id):
+            return generate_response(
+                False,
+                "You do not have permission to edit this project",
+                status_code=403,
+            )
+
         data = request.get_json()
+
         input_project = data.get("project_name")
         input_description = data.get("description")
-        input_user_id = data.get("user_id")
 
-        project = Projects.query.get_or_404(id)
-
-        if not all((input_project, input_description, input_user_id)):
-            return generate_response(False, "Data not complete"), 422
-
-        project.project_name = input_project
-        project.description = input_description
-        project.user_id = input_user_id
+        if not input_project or not input_description:
+            return generate_response(
+                False,
+                "Incomplete data. Please provide all required fields.",
+                status_code=422,
+            )
+        else:
+            project.project_name = input_project
+            project.description = input_description
 
         db.session.commit()
 
         return generate_response(
-            True, "Project successfully updated", project.basic_serialize(), 201
+            True,
+            "Project successfully updated",
+            project.basic_serialize(),
+            status_code=201,
         )
     except SQLAlchemyError as e:
         # Handle database error, rollback, and return an error response
         db.session.rollback()
-        return generate_response(False, f"Error updating project: {str(e)}"), 500
+        return generate_response(
+            False, f"Error updating project: {str(e)}", status_code=500
+        )
 
 
 @projectBP.route("/<int:id>", methods=["DELETE"], strict_slashes=False)
+@jwt_required(locations=["headers"])
 def delete_project(id):
     try:
         # Try to delete a specific project by ID
+        current_user = get_jwt_identity()
+
         project = Projects.query.get_or_404(id)
+
+        if current_user != str(project.user_id):
+            return generate_response(
+                False,
+                "You do not have permission to edit this project",
+                status_code=403,
+            )
+
         db.session.delete(project)
         db.session.commit()
 
         return generate_response(True, "Project successfully deleted", status_code=204)
+
     except SQLAlchemyError as e:
         # Handle database error, rollback, and return an error response
         db.session.rollback()
-        return generate_response(False, f"Error deleting project: {str(e)}"), 500
+        return generate_response(
+            False, f"Error deleting project: {str(e)}", status_code=500
+        )
