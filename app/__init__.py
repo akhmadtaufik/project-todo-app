@@ -36,7 +36,7 @@ def create_app(config_class=Config):
     app.register_blueprint(authBP, url_prefix="/api/auth")
     app.register_blueprint(userBP, url_prefix="/api/users")
     app.register_blueprint(projectBP, url_prefix="/api/projects")
-    app.register_blueprint(taskBP, url_prefix="/api/projects/task")
+    app.register_blueprint(taskBP, url_prefix="/api/project")
 
     # Return the configured app instance.
     return app
