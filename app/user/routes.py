@@ -7,6 +7,12 @@ from sqlalchemy.exc import SQLAlchemyError
 
 @userBP.route("/", methods=["GET"], strict_slashes=False)
 def get_all_users():
+    """
+    Retrieves a limited number of user records from the database and constructs a JSON response.
+
+    Returns:
+        tuple: A tuple containing the JSON response and the status code.
+    """
     try:
         # Parse the 'limit' query parameter, default to 10 if not provided
         limit = int(request.args.get("limit", 10))
@@ -26,6 +32,21 @@ def get_all_users():
 
 @userBP.route("/<int:user_id>", methods=["GET"], strict_slashes=False)
 def get_user_by_id(user_id):
+    """
+    Retrieves a user from the database based on the provided user ID.
+
+    Args:
+        user_id (int): The ID of the user to retrieve.
+
+    Returns:
+        tuple: A tuple containing a JSON response with the serialized user data and a status code.
+
+    Raises:
+        404: If the user does not exist.
+
+    Example Usage:
+        GET /user/1
+    """
     try:
         user = Users.query.get_or_404(user_id)
 
@@ -80,7 +101,15 @@ def update_user(user_id):
 
 
 def update_user_object(user, name, email, password):
-    # Update user properties with new values
+    """
+    Helper function to update user object with new values.
+
+    Parameters:
+    - user (Users): The user object to be updated.
+    - name (str): The new username.
+    - email (str): The new email address.
+    - password (str): The new password.
+    """
     user.name = name
     user.email = email
     user.password = password
