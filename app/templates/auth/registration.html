@@ -1,4 +1,7 @@
 {% extends 'auth/base.html' %}
+
+{% block title %}Registration{% endblock %}
+
 {% block content %}
 <section class="wrapper">
     <div class="container main">
@@ -7,8 +10,8 @@
                 <!-- bagian toast error-->
                 <div aria-live="polite" aria-atomic="true" class="bg-dark position-relative bd-example-toasts">
                     <div class="toast-container p-3 top-0 start-50 translate-middle-x" id="toastPlacement">
-                        <div class="toast text-bg-danger" id="liveToast">
-                            <div class="toast-body" id="toast-body">
+                        <div class="toast text-bg-danger" id="liveToastError">
+                            <div class="toast-body" id="toast-body-error">
                             </div>
                         </div>
                     </div>
@@ -52,7 +55,8 @@
                         class="mt-4 btn btn-dark d-flex justify-content-center align-items-center">Register</button>
 
                     <div class="text2 mt-4 d-flex flex-row align-items-center">
-                        <span>If you already have an account, please <a href="login.html" class="register">log in</a>
+                        <span>If you already have an account, please <a href="{{url_for('frontend.login')}}"
+                                class="register">log in</a>
                             here.</span>
                     </div>
                 </div>
