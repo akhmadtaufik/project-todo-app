@@ -15,3 +15,8 @@ def register():
 @frontendBP.route("/", methods=["GET"], strict_slashes=False)
 def index():
     return render_template("tasks/index.html")
+
+
+@frontendBP.route("/projects", methods=["GET"], strict_slashes=False)
+def projects():
+    return render_template("projects/project.html")
