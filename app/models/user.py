@@ -13,6 +13,8 @@ class Users(db.Model):
     update_at = db.Column(
         db.TIMESTAMP, server_default=db.func.now(), onupdate=db.func.now()
     )
+    # Timestamp-based token revocation: tokens issued before this time are invalid
+    token_valid_after = db.Column(db.TIMESTAMP, nullable=True)
 
     projects = db.relationship(
         "Projects", backref="users", cascade="all, delete-orphan"

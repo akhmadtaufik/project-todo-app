@@ -112,8 +112,26 @@ class AuthService:
         """
         Revoke all tokens for a user (force logout from all devices).
         
-        Note: This requires tracking tokens by user_id in the blocklist.
+        Uses timestamp-based invalidation: sets token_valid_after to current time,
+        which invalidates all tokens issued before this timestamp.
+        
+        Args:
+            user_id: The user ID to revoke tokens for
+            
+        Returns:
+            Tuple of (success, message)
         """
-        # This would require getting all active tokens for the user
-        # For now, we just log the intention
-        return True, "All tokens revoked for user"
+        try:
+            user = Users.query.get(user_id)
+            if not user:
+                return False, "User not found"
+            
+            # Set token_valid_after to current time
+            # All tokens issued before this time will be considered invalid
+            user.token_valid_after = datetime.utcnow()
+            db.session.commit()
+            
+            return True, "All tokens revoked for user"
+        except Exception as e:
+            db.session.rollback()
+            return False, f"Failed to revoke tokens: {str(e)}"

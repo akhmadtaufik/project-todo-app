@@ -5,6 +5,7 @@ Business logic for user operations.
 """
 from typing import List, Optional, Tuple
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import joinedload
 
 from app.core.extensions import db
 from app.core.security import hash_password
@@ -20,6 +21,8 @@ class UserService:
         """
         Get all users with pagination.
         
+        Uses joinedload to eager load projects and prevent N+1 queries.
+        
         Args:
             page: Page number (1-indexed)
             per_page: Number of items per page
@@ -27,7 +30,10 @@ class UserService:
         Returns:
             Dictionary with 'data' and 'meta' keys for paginated response
         """
-        pagination = Users.query.paginate(page=page, per_page=per_page, error_out=False)
+        # Use joinedload to fetch users and their projects in a single query
+        pagination = Users.query.options(
+            joinedload(Users.projects)
+        ).paginate(page=page, per_page=per_page, error_out=False)
         data = [
             {
                 "user_id": user.id,
