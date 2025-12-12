@@ -44,10 +44,31 @@ def create_app(config_class=None):
         strict_transport_security=not is_development,
         content_security_policy=None if is_development else {
             'default-src': "'self'",
-            'script-src': "'self'",
+            'script-src': "'self' 'unsafe-inline'",
             'style-src': "'self' 'unsafe-inline'",
+            'img-src': "'self' data:",
         },
     )
+    
+    # Initialize Swagger/OpenAPI documentation
+    from flasgger import Swagger
+    swagger_template = app.config.get('SWAGGER_TEMPLATE', {})
+    swagger_config = {
+        "headers": [],
+        "specs": [
+            {
+                "endpoint": "apispec",
+                "route": "/apispec.json",
+                "rule_filter": lambda rule: True,
+                "model_filter": lambda tag: True,
+            }
+        ],
+        "static_url_path": "/flasgger_static",
+        "swagger_ui": True,
+        "specs_route": "/apidocs/",
+        "openapi": "3.0.0"
+    }
+    Swagger(app, template=swagger_template, config=swagger_config)
     
     # Import and initialize security callbacks (JWT token revocation, etc.)
     with app.app_context():
