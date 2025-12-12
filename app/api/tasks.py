@@ -16,12 +16,69 @@ from app.common.response_util import generate_response
 @jwt_required(locations=["headers"])
 def get_all_tasks_by_project_id(project_id):
     """
-    Get all tasks for a project.
-    
-    Returns:
-        200: List of tasks
-        403: No permission
-        500: Database error
+    Get all tasks for a project
+    ---
+    tags:
+      - Tasks
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The project ID to get tasks for
+    responses:
+      200:
+        description: List of tasks retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: Tasks retrieved successfully
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      task_id:
+                        type: integer
+                        example: 1
+                      task_name:
+                        type: string
+                        example: Complete documentation
+                      description:
+                        type: string
+                        example: Write API documentation
+                      due_date:
+                        type: string
+                        format: date
+                        example: "2025-12-31"
+                      status:
+                        type: string
+                        example: pending
+                      project_id:
+                        type: integer
+                        example: 1
+                      created_at:
+                        type: string
+                        format: date-time
+                      update_at:
+                        type: string
+                        format: date-time
+      401:
+        description: Missing or invalid token
+      403:
+        description: No permission to retrieve these tasks
+      500:
+        description: Database error
     """
     try:
         current_user = get_jwt_identity()
@@ -43,12 +100,86 @@ def get_all_tasks_by_project_id(project_id):
 @jwt_required(locations=["headers"])
 def create_task():
     """
-    Create a new task.
-    
-    Returns:
-        201: Task created
-        403: Invalid project
-        422: Invalid parameters or due date
+    Create a new task
+    ---
+    tags:
+      - Tasks
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - task_name
+              - description
+              - due_date
+              - status
+              - project_id
+            properties:
+              task_name:
+                type: string
+                example: Complete documentation
+              description:
+                type: string
+                example: Write API documentation for all endpoints
+              due_date:
+                type: string
+                format: date
+                description: Due date in YYYY-MM-DD format (must be in the future)
+                example: "2025-12-31"
+              status:
+                type: string
+                enum: [pending, in_progress, completed]
+                example: pending
+              project_id:
+                type: integer
+                description: The project ID this task belongs to
+                example: 1
+    responses:
+      201:
+        description: Task created successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: Task created successfully
+                data:
+                  type: object
+                  properties:
+                    task_id:
+                      type: integer
+                      example: 1
+                    task_name:
+                      type: string
+                    description:
+                      type: string
+                    due_date:
+                      type: string
+                      format: date
+                    status:
+                      type: string
+                    project_id:
+                      type: integer
+                    created_at:
+                      type: string
+                      format: date-time
+      401:
+        description: Missing or invalid token
+      403:
+        description: Invalid project_id for creating a task
+      422:
+        description: Invalid parameters or due date in the past
+      500:
+        description: Database error
     """
     try:
         current_user = get_jwt_identity()
@@ -95,13 +226,90 @@ def create_task():
 @jwt_required(locations=["headers"])
 def update_task(project_id, task_id):
     """
-    Update a task.
-    
-    Returns:
-        201: Task updated
-        403: No permission or invalid project
-        404: Task not found
-        422: Incomplete data
+    Update a task
+    ---
+    tags:
+      - Tasks
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The project ID the task belongs to
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The task ID to update
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - task_name
+              - description
+              - due_date
+              - status
+            properties:
+              task_name:
+                type: string
+                example: Updated task name
+              description:
+                type: string
+                example: Updated task description
+              due_date:
+                type: string
+                format: date
+                example: "2025-12-31"
+              status:
+                type: string
+                enum: [pending, in_progress, completed]
+                example: in_progress
+    responses:
+      201:
+        description: Task updated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: Task updated successfully
+                data:
+                  type: object
+                  properties:
+                    task_name:
+                      type: string
+                    description:
+                      type: string
+                    due_date:
+                      type: string
+                      format: date
+                    status:
+                      type: string
+                    update_at:
+                      type: string
+                      format: date-time
+      401:
+        description: Missing or invalid token
+      403:
+        description: No permission or invalid project
+      404:
+        description: Task not found
+      422:
+        description: Incomplete data
+      500:
+        description: Database error
     """
     try:
         current_user = get_jwt_identity()
@@ -142,12 +350,36 @@ def update_task(project_id, task_id):
 @jwt_required(locations=["headers"])
 def delete_task(project_id, task_id):
     """
-    Delete a task.
-    
-    Returns:
-        204: Task deleted
-        403: No permission or invalid project
-        404: Task not found
+    Delete a task
+    ---
+    tags:
+      - Tasks
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The project ID the task belongs to
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The task ID to delete
+    responses:
+      204:
+        description: Task deleted successfully
+      401:
+        description: Missing or invalid token
+      403:
+        description: No permission or invalid project
+      404:
+        description: Task not found
+      500:
+        description: Database error
     """
     try:
         current_user = get_jwt_identity()
@@ -171,3 +403,4 @@ def delete_task(project_id, task_id):
             return generate_response(False, message, status_code=500)
     except SQLAlchemyError as e:
         return generate_response(False, f"Error deleting task: {str(e)}", status_code=500)
+
