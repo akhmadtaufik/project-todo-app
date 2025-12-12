@@ -2,67 +2,90 @@
 Authentication API Routes
 
 Handles user registration, login, token refresh, and logout.
-Rate limited for security.
+Strict rate limiting applied for security.
 """
 from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+from pydantic import ValidationError
 
 from app.api import auth_bp
 from app.core.extensions import limiter
+from app.schemas.auth import LoginRequest, RegisterRequest
 from app.services.auth_service import AuthService
 
 
+def parse_request_body(schema_class):
+    """Parse and validate request body with Pydantic schema."""
+    data = request.get_json()
+    if not data:
+        return None, {"success": False, "error": {"code": 400, "message": "No data provided"}}
+    try:
+        return schema_class(**data), None
+    except ValidationError as e:
+        # Return sanitized field errors (no internal details)
+        errors = []
+        for err in e.errors():
+            field = ".".join(str(loc) for loc in err["loc"])
+            msg = err["msg"]
+            # Sanitize message - remove internal details
+            if "string" in msg.lower():
+                msg = f"Invalid {field} format"
+            errors.append({"field": field, "message": msg})
+        return None, {"success": False, "error": {"code": 422, "message": "Validation error", "details": errors}}
+
+
 @auth_bp.route("/register", methods=["POST"], strict_slashes=False)
-@limiter.limit("5 per minute")
+@limiter.limit("5 per minute")  # Strict limit for registration
 def registration():
     """
     Register a new user.
     
     Returns:
         201: Registration successful
-        422: Incomplete data or duplicate email
+        422: Validation error
     """
-    data = request.get_json()
+    validated, error = parse_request_body(RegisterRequest)
+    if error:
+        return jsonify(error), error["error"]["code"]
     
-    if not data:
-        return jsonify({"success": False, "message": "No data provided"}), 400
-    
-    name = data.get("name")
-    email = data.get("email")
-    password = data.get("password")
-    
-    success, message, user = AuthService.register_user(name, email, password)
+    success, message, user = AuthService.register_user(
+        validated.name,
+        validated.email,
+        validated.password
+    )
     
     if success:
         return jsonify({"success": True, "message": message}), 201
     else:
-        return jsonify({"success": False, "message": message}), 422
+        return jsonify({"success": False, "error": {"code": 422, "message": message}}), 422
 
 
 @auth_bp.route("/login", methods=["POST"], strict_slashes=False)
-@limiter.limit("10 per minute")
+@limiter.limit("5 per minute")  # Strict limit for login (prevents brute force)
 def login():
     """
     Login with user credentials.
     
     Returns:
         200: Login successful with tokens
-        400: Incomplete data or user not found
+        400: Incomplete data
         401: Invalid credentials
     """
-    data = request.get_json()
+    validated, error = parse_request_body(LoginRequest)
+    if error:
+        return jsonify(error), error["error"]["code"]
     
-    if not data:
-        return jsonify({"success": False, "message": "No data provided"}), 400
-    
-    email = data.get("email")
-    password = data.get("password")
-    
-    success, message, user = AuthService.authenticate_user(email, password)
+    success, message, user = AuthService.authenticate_user(
+        validated.email,
+        validated.password
+    )
     
     if not success:
-        status_code = 401 if "Invalid credentials" in message else 400
-        return jsonify({"success": False, "message": message}), status_code
+        # Generic error message for security (don't reveal if email exists)
+        return jsonify({
+            "success": False,
+            "error": {"code": 401, "message": "Invalid email or password"}
+        }), 401
     
     access_token, refresh_token = AuthService.create_tokens(user.id)
     
@@ -112,4 +135,4 @@ def logout():
     if success:
         return jsonify({"success": True, "message": message}), 200
     else:
-        return jsonify({"success": False, "message": message}), 500
+        return jsonify({"success": False, "error": {"code": 500, "message": "Logout failed"}}), 500
