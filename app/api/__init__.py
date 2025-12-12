@@ -20,3 +20,7 @@ CORS(tasks_bp)
 
 # Import routes after blueprint creation to avoid circular imports
 from app.api import auth, users, projects, tasks
+
+# Import system and error blueprints
+from app.api.system import system_bp
+from app.api.errors import errors_bp
