@@ -1,29 +1,72 @@
 """
 User Schemas
 
-Pydantic models for User request/response validation.
+Pydantic models with strict validation for User operations.
 """
+import re
+import bleach
 from datetime import datetime
 from typing import Optional, List, Any
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
+
+
+def sanitize_string(value: str, max_length: int = 255) -> str:
+    """Sanitize string input - strip, limit length, remove HTML."""
+    if not value:
+        return value
+    value = value.strip()
+    value = bleach.clean(value, tags=[], strip=True)
+    return value[:max_length]
 
 
 class UserBase(BaseModel):
-    """Base user schema with common fields."""
-    name: str
-    email: str
+    """Base user schema with common validated fields."""
+    name: str = Field(..., min_length=2, max_length=100)
+    email: EmailStr
+    
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Sanitize name field."""
+        return sanitize_string(v, 100)
 
 
 class UserCreate(UserBase):
-    """Schema for creating a new user."""
-    password: str
+    """Schema for creating a new user with password validation."""
+    password: str = Field(..., min_length=8, max_length=128)
+    
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        """Validate password strength."""
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if not re.search(r'[A-Za-z]', v):
+            raise ValueError("Password must contain at least one letter")
+        if not re.search(r'\d', v):
+            raise ValueError("Password must contain at least one number")
+        return v
 
 
 class UserUpdate(BaseModel):
-    """Schema for updating a user."""
-    username: str
-    email: str
-    password: str
+    """Schema for updating a user with validation."""
+    username: str = Field(..., min_length=2, max_length=100)
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
+    
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v: str) -> str:
+        """Sanitize username field."""
+        return sanitize_string(v, 100)
+    
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        """Validate password strength."""
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
 
 
 class UserResponse(BaseModel):
