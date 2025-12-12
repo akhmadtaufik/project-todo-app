@@ -30,3 +30,8 @@ limiter = Limiter(
 # Initializing Flask-Talisman for security headers
 # Note: CSP and HTTPS forcing disabled for development
 talisman = Talisman()
+
+# Note: Swagger (flasgger) is initialized directly in the app factory
+# with the template configuration, not as a shared extension.
+
+
