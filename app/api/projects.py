@@ -16,11 +16,62 @@ from app.common.response_util import generate_response
 @jwt_required(locations=["headers"])
 def get_all_projects():
     """
-    Get all projects for the current user.
-    
-    Returns:
-        200: List of projects
-        500: Database error
+    Get all projects for the current user
+    ---
+    tags:
+      - Projects
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 100
+        description: Maximum number of projects to return
+    responses:
+      200:
+        description: List of projects retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: Projects retrieved successfully
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      project_id:
+                        type: integer
+                        example: 1
+                      project_name:
+                        type: string
+                        example: My First Project
+                      description:
+                        type: string
+                        example: A sample project
+                      user_id:
+                        type: integer
+                        example: 1
+                      created_at:
+                        type: string
+                        format: date-time
+                      update_at:
+                        type: string
+                        format: date-time
+      401:
+        description: Missing or invalid token
+      500:
+        description: Database error
     """
     try:
         user_id = get_jwt_identity()
@@ -37,12 +88,63 @@ def get_all_projects():
 @jwt_required(locations=["headers"])
 def create_project():
     """
-    Create a new project.
-    
-    Returns:
-        201: Project created
-        422: Invalid parameters
-        500: Database error
+    Create a new project
+    ---
+    tags:
+      - Projects
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - project_name
+            properties:
+              project_name:
+                type: string
+                example: My New Project
+              description:
+                type: string
+                example: Description of the project
+    responses:
+      201:
+        description: Project created successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: Project created successfully
+                data:
+                  type: object
+                  properties:
+                    project_id:
+                      type: integer
+                      example: 1
+                    project_name:
+                      type: string
+                      example: My New Project
+                    description:
+                      type: string
+                    user_id:
+                      type: integer
+                    created_at:
+                      type: string
+                      format: date-time
+      401:
+        description: Missing or invalid token
+      422:
+        description: Invalid parameters
+      500:
+        description: Database error
     """
     try:
         data = request.get_json()
@@ -67,12 +169,56 @@ def create_project():
 @jwt_required(locations=["headers"])
 def get_project_by_id(id):
     """
-    Get a project by ID.
-    
-    Returns:
-        200: Project data
-        404: Project not found
-        500: Database error
+    Get a project by ID
+    ---
+    tags:
+      - Projects
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The project ID
+    responses:
+      200:
+        description: Project retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: Project retrieved successfully
+                data:
+                  type: object
+                  properties:
+                    project_id:
+                      type: integer
+                    project_name:
+                      type: string
+                    description:
+                      type: string
+                    user_id:
+                      type: integer
+                    created_at:
+                      type: string
+                      format: date-time
+                    update_at:
+                      type: string
+                      format: date-time
+      401:
+        description: Missing or invalid token
+      404:
+        description: Project not found
+      500:
+        description: Database error
     """
     try:
         project = ProjectService.get_project_by_id(id)
@@ -92,13 +238,68 @@ def get_project_by_id(id):
 @jwt_required(locations=["headers"])
 def update_project(id):
     """
-    Update a project.
-    
-    Returns:
-        201: Project updated
-        403: No permission
-        404: Project not found
-        422: Incomplete data
+    Update a project
+    ---
+    tags:
+      - Projects
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The project ID to update
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - project_name
+            properties:
+              project_name:
+                type: string
+                example: Updated Project Name
+              description:
+                type: string
+                example: Updated project description
+    responses:
+      201:
+        description: Project updated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: Project updated successfully
+                data:
+                  type: object
+                  properties:
+                    project_name:
+                      type: string
+                    description:
+                      type: string
+                    update_at:
+                      type: string
+                      format: date-time
+      401:
+        description: Missing or invalid token
+      403:
+        description: No permission to edit this project
+      404:
+        description: Project not found
+      422:
+        description: Incomplete data
+      500:
+        description: Database error
     """
     try:
         current_user = get_jwt_identity()
@@ -137,12 +338,30 @@ def update_project(id):
 @jwt_required(locations=["headers"])
 def delete_project(id):
     """
-    Delete a project.
-    
-    Returns:
-        204: Project deleted
-        403: No permission
-        404: Project not found
+    Delete a project
+    ---
+    tags:
+      - Projects
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The project ID to delete
+    responses:
+      204:
+        description: Project deleted successfully
+      401:
+        description: Missing or invalid token
+      403:
+        description: No permission to delete this project
+      404:
+        description: Project not found
+      500:
+        description: Database error
     """
     try:
         current_user = get_jwt_identity()
@@ -166,3 +385,4 @@ def delete_project(id):
             return generate_response(False, message, status_code=500)
     except SQLAlchemyError as e:
         return generate_response(False, f"Error deleting project: {str(e)}", status_code=500)
+
