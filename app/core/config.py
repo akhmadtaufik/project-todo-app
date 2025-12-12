@@ -1,39 +1,76 @@
 """
 Application Configuration
 
-Loads configuration from environment variables.
-All credentials MUST be set in .env - no fallback values.
-Supports Development, Testing, and Production environments.
+Strict environment validation using pydantic-settings.
+Application WILL CRASH at startup if critical vars are missing or weak.
 """
 import os
 from datetime import timedelta
-from dotenv import load_dotenv
-
-load_dotenv()
-
-
-def get_required_env(key: str) -> str:
-    """Get required environment variable or raise error."""
-    value = os.environ.get(key)
-    if not value:
-        raise ValueError(f"Required environment variable '{key}' is not set")
-    return value
+from typing import Optional
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings
 
 
-def get_env(key: str, default: str = None) -> str:
-    """Get optional environment variable with default."""
-    return os.environ.get(key, default)
-
-
-class Config:
-    """Base configuration class - requires all env vars to be set."""
+class Settings(BaseSettings):
+    """
+    Strict settings validation - crashes app if critical vars are missing/weak.
+    All values loaded from environment variables.
+    """
     
-    # Secret keys (REQUIRED)
-    SECRET_KEY = get_required_env('SECRET_KEY')
-    JWT_SECRET_KEY = get_required_env('JWT_SECRET_KEY')
+    # Critical Required Settings (crash if missing or weak)
+    DATABASE_URL: str = Field(..., min_length=10)
+    SECRET_KEY: str = Field(..., min_length=32)
+    JWT_SECRET_KEY: str = Field(..., min_length=32)
     
-    # Database configuration (REQUIRED)
-    SQLALCHEMY_DATABASE_URI = get_required_env('DATABASE_URL')
+    # Optional Settings with defaults
+    FLASK_ENV: str = Field(default="development")
+    LOG_LEVEL: str = Field(default="INFO")
+    LOG_FILE: str = Field(default="app.log")
+    REDIS_URL: Optional[str] = Field(default="memory://")
+    
+    @field_validator('SECRET_KEY', 'JWT_SECRET_KEY')
+    @classmethod
+    def validate_secret_strength(cls, v: str, info) -> str:
+        """Ensure secrets are not default/weak values."""
+        weak_patterns = ['secret', 'password', '123456', 'default', 'change']
+        if len(v) < 32:
+            raise ValueError(f"{info.field_name} must be at least 32 characters")
+        # Check for weak patterns (case-insensitive)
+        v_lower = v.lower()
+        for pattern in weak_patterns:
+            if pattern in v_lower and len(v) < 50:
+                raise ValueError(f"{info.field_name} appears weak - use a stronger secret")
+        return v
+    
+    @field_validator('DATABASE_URL')
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        """Validate database URL format."""
+        if not v.startswith(('postgresql://', 'postgres://', 'sqlite://')):
+            raise ValueError("DATABASE_URL must be a valid PostgreSQL or SQLite URL")
+        return v
+    
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        case_sensitive = True
+        extra = "ignore"  # Allow extra env vars not defined in Settings
+
+
+# Load and validate settings at module load time
+# This will CRASH the app if validation fails
+settings = Settings()
+
+
+class FlaskConfig:
+    """Base Flask configuration class - uses validated settings."""
+    
+    # Secret keys (validated by pydantic-settings)
+    SECRET_KEY = settings.SECRET_KEY
+    JWT_SECRET_KEY = settings.JWT_SECRET_KEY
+    
+    # Database configuration
+    SQLALCHEMY_DATABASE_URI = settings.DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # JWT Configuration
@@ -41,42 +78,45 @@ class Config:
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
     JWT_BLACKLIST_ENABLED = True
     JWT_BLACKLIST_TOKEN_CHECKS = ['access', 'refresh']
+    JWT_COOKIE_SECURE = True  # Only send JWT cookies over HTTPS
     
     # Rate Limiting
-    RATELIMIT_STORAGE_URL = get_env('REDIS_URL', 'memory://')
+    RATELIMIT_STORAGE_URL = settings.REDIS_URL
     RATELIMIT_DEFAULT = "200 per day, 50 per hour"
     RATELIMIT_HEADERS_ENABLED = True
     
-    # Security
+    # Session Security (Anti-CSRF, XSS, Session Hijacking)
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     
     # Logging
-    LOG_LEVEL = get_env('LOG_LEVEL', 'INFO')
-    LOG_FILE = get_env('LOG_FILE', 'app.log')
+    LOG_LEVEL = settings.LOG_LEVEL
+    LOG_FILE = settings.LOG_FILE
 
 
-class DevelopmentConfig(Config):
-    """Development configuration."""
+class DevelopmentConfig(FlaskConfig):
+    """Development configuration - relaxed security for local dev."""
     DEBUG = True
-    SESSION_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = False  # Allow HTTP in development
+    JWT_COOKIE_SECURE = False
     LOG_LEVEL = 'DEBUG'
 
 
-class TestingConfig(Config):
+class TestingConfig(FlaskConfig):
     """Testing configuration."""
     TESTING = True
     DEBUG = True
     SESSION_COOKIE_SECURE = False
-    SQLALCHEMY_DATABASE_URI = get_env('TEST_DATABASE_URL', Config.SQLALCHEMY_DATABASE_URI)
+    JWT_COOKIE_SECURE = False
 
 
-class ProductionConfig(Config):
-    """Production configuration - DEBUG is always False."""
+class ProductionConfig(FlaskConfig):
+    """Production configuration - maximum security, DEBUG ALWAYS FALSE."""
     DEBUG = False
     TESTING = False
     LOG_LEVEL = 'WARNING'
+    # All security settings remain True from base class
 
 
 # Config selector based on FLASK_ENV
@@ -90,5 +130,5 @@ config_by_name = {
 
 def get_config():
     """Get config class based on FLASK_ENV."""
-    env = get_env('FLASK_ENV', 'development')
+    env = settings.FLASK_ENV
     return config_by_name.get(env, DevelopmentConfig)
