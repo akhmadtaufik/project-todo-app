@@ -16,11 +16,50 @@ from app.common.response_util import success_response, error_response
 @jwt_required()
 def get_all_users():
     """
-    Retrieves a limited number of user records.
-    
-    Returns:
-        200: List of users
-        422: Invalid parameter
+    Get all users (paginated)
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 100
+        description: Maximum number of users to return
+    responses:
+      200:
+        description: List of users retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      name:
+                        type: string
+                        example: John Doe
+                      email:
+                        type: string
+                        example: john@example.com
+      401:
+        description: Missing or invalid token
+      422:
+        description: Invalid limit parameter
     """
     try:
         limit = int(request.args.get("limit", 10))
@@ -35,12 +74,65 @@ def get_all_users():
 @jwt_required()
 def get_user_by_id(user_id):
     """
-    Retrieves a user by ID.
-    
-    Returns:
-        200: User data
-        403: No permission
-        404: User not found
+    Get a user by ID
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The user ID
+    responses:
+      200:
+        description: User data retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                data:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 1
+                    name:
+                      type: string
+                      example: John Doe
+                    email:
+                      type: string
+                      example: john@example.com
+                    projects:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          project_id:
+                            type: integer
+                          project_name:
+                            type: string
+      401:
+        description: Missing or invalid token
+      403:
+        description: No permission to access this user's data
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                error:
+                  type: string
+                  example: You don't have permission to access this user's data
+      404:
+        description: User not found
     """
     current_user_id = get_jwt_identity()
     
@@ -64,13 +156,71 @@ def get_user_by_id(user_id):
 @jwt_required()
 def update_user(user_id):
     """
-    Update a user's information.
-    
-    Returns:
-        200: Updated user data
-        403: No permission
-        404: User not found
-        422: Incomplete data
+    Update a user's information
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The user ID to update
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - username
+              - email
+              - password
+            properties:
+              username:
+                type: string
+                example: johndoe
+              email:
+                type: string
+                format: email
+                example: john@example.com
+              password:
+                type: string
+                example: NewSecurePass123
+    responses:
+      200:
+        description: User updated successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                  example: true
+                message:
+                  type: string
+                  example: Data successfully updated
+                data:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string
+                    email:
+                      type: string
+      401:
+        description: Missing or invalid token
+      403:
+        description: No permission to update this user's data
+      404:
+        description: User not found
+      422:
+        description: Incomplete data
     """
     current_user_id = get_jwt_identity()
     
@@ -107,12 +257,30 @@ def update_user(user_id):
 @jwt_required()
 def delete_user(user_id):
     """
-    Delete a user.
-    
-    Returns:
-        204: User deleted
-        403: No permission
-        500: Database error
+    Delete a user
+    ---
+    tags:
+      - Users
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The user ID to delete
+    responses:
+      204:
+        description: User deleted successfully
+      401:
+        description: Missing or invalid token
+      403:
+        description: No permission to delete this user's account
+      404:
+        description: User not found
+      500:
+        description: Database error
     """
     current_user_id = get_jwt_identity()
     
@@ -134,3 +302,4 @@ def delete_user(user_id):
 
     except SQLAlchemyError:
         return jsonify({"error": "Error deleting user"}), 500
+
