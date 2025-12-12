@@ -2,11 +2,16 @@
 Flask Application Entry Point
 
 Use this file to run the Flask application.
-Database migrations are handled by Flask-Migrate (flask db migrate/upgrade).
+Debug mode is controlled by config, NOT hardcoded.
 """
 from app import create_app
 
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # Debug mode is determined by app.config['DEBUG'], not hardcoded
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=app.config.get('DEBUG', False)
+    )
