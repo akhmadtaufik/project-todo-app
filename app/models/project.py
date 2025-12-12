@@ -31,5 +31,5 @@ class Projects(db.Model):
         return {
             "project_name": self.project_name,
             "description": self.description,
-            "update_at": str(self.created_at),
+            "update_at": str(self.update_at),
         }

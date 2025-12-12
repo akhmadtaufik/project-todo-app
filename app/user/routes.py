@@ -2,10 +2,12 @@ from app.extensions import db
 from app.models.user import Users
 from app.user import userBP
 from flask import jsonify, request
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy.exc import SQLAlchemyError
 
 
 @userBP.route("/", methods=["GET"], strict_slashes=False)
+@jwt_required()  # Require authentication
 def get_all_users():
     """
     Retrieves a limited number of user records from the database and constructs a JSON response.
@@ -20,9 +22,18 @@ def get_all_users():
         # Return a 422 Unprocessable Entity response for invalid parameter
         return jsonify({"error": "Invalid parameter"}), 422
 
-    # Query users and serialize the results
+    # Query users and serialize the results (use basic serialization to avoid exposing sensitive data)
     users = db.session.query(Users).limit(limit).all()
-    results = [user.serialize() for user in users]
+    results = []
+    for user in users:
+        user_data = {
+            "user_id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "created_at": str(user.created_at),
+            "update_at": str(user.update_at)
+        }
+        results.append(user_data)
 
     # Construct a JSON response with the serialized user data
     response = jsonify({"success": True, "data": results})
@@ -31,6 +42,7 @@ def get_all_users():
 
 
 @userBP.route("/<int:user_id>", methods=["GET"], strict_slashes=False)
+@jwt_required()  # Require authentication
 def get_user_by_id(user_id):
     """
     Retrieves a user from the database based on the provided user ID.
@@ -43,10 +55,17 @@ def get_user_by_id(user_id):
 
     Raises:
         404: If the user does not exist.
+        403: If the authenticated user doesn't have permission to access this user's data.
 
     Example Usage:
         GET /user/1
     """
+    current_user_id = get_jwt_identity()
+    
+    # Only allow users to access their own data (no admin role implemented)
+    if str(current_user_id) != str(user_id):
+        return jsonify({"error": "You don't have permission to access this user's data"}), 403
+
     try:
         user = Users.query.get_or_404(user_id)
 
@@ -62,7 +81,14 @@ def get_user_by_id(user_id):
 
 
 @userBP.route("/<int:user_id>", methods=["PUT"], strict_slashes=False)
+@jwt_required()  # Require authentication
 def update_user(user_id):
+    current_user_id = get_jwt_identity()
+    
+    # Only allow users to update their own data
+    if str(current_user_id) != str(user_id):
+        return jsonify({"error": "You don't have permission to update this user's data"}), 403
+
     # Extract JSON data from the request
     data = request.get_json()
     username = data.get("username")
@@ -108,15 +134,23 @@ def update_user_object(user, name, email, password):
     - user (Users): The user object to be updated.
     - name (str): The new username.
     - email (str): The new email address.
-    - password (str): The new password.
+    - password (str): The new password (will be hashed).
     """
+    from werkzeug.security import generate_password_hash
     user.name = name
     user.email = email
-    user.password = password
+    user.password = generate_password_hash(password)
 
 
 @userBP.route("/<int:user_id>", methods=["DELETE"], strict_slashes=False)
+@jwt_required()  # Require authentication
 def delete_user(user_id):
+    current_user_id = get_jwt_identity()
+    
+    # Only allow users to delete their own account
+    if str(current_user_id) != str(user_id):
+        return jsonify({"error": "You don't have permission to delete this user's account"}), 403
+
     try:
         # Query the user based on ID or return a 404 Not Found response
         user = Users.query.get_or_404(user_id)

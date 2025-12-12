@@ -19,15 +19,16 @@ def generate_response(success, message, data=None, status_code=200):
     return jsonify(response_data), status_code
 
 
-def has_permission(user_id):
-    auth_projects = Projects.query.filter_by(user_id=user_id).all()
-    return bool(auth_projects) and str(user_id) == str(auth_projects[0].user_id)
+def has_permission(project_id, user_id):
+    """Check if the user has permission to access a specific project."""
+    project = Projects.query.filter_by(id=project_id, user_id=user_id).first()
+    return project is not None
 
 
 def is_valid_project(project_id, user_id):
-    auth_projects = Projects.query.filter_by(user_id=user_id).all()
-    projects = {project.id for project in auth_projects}
-    return project_id in projects
+    """Check if a project exists and belongs to the user."""
+    project = Projects.query.filter_by(id=project_id, user_id=user_id).first()
+    return project is not None
 
 
 @taskBP.route("/<int:project_id>/tasks", methods=["GET"], strict_slashes=False)
@@ -36,17 +37,10 @@ def get_all_task_by_project_id(project_id):
     try:
         current_user = get_jwt_identity()
 
-        if not has_permission(current_user):
+        if not has_permission(project_id, current_user):
             return generate_response(
                 success=False,
                 message="You do not have permission to retrieve these tasks",
-                status_code=403,
-            )
-
-        if not is_valid_project(project_id, current_user):
-            return generate_response(
-                success=False,
-                message="Task not found. Please verify the project ID",
                 status_code=403,
             )
 
@@ -81,16 +75,6 @@ def create_task():
     try:
         current_user = get_jwt_identity()
 
-        if not has_permission(current_user):
-            return generate_response(
-                success=False,
-                message="You do not have permission to create tasks",
-                status_code=403,
-            )
-
-        auth_projects = Projects.query.filter_by(user_id=current_user).all()
-        projects = {project.id for project in auth_projects}
-
         data = request.get_json()
         input_task = data.get("task_name")
         input_description = data.get("description")
@@ -98,7 +82,8 @@ def create_task():
         input_status = data.get("status")
         input_project_id = data.get("project_id")
 
-        if input_project_id not in projects:
+        # Check if the project belongs to the authenticated user
+        if not is_valid_project(input_project_id, current_user):
             return generate_response(
                 success=False,
                 message="Invalid project_id for creating a task",
