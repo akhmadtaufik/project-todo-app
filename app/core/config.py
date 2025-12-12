@@ -93,6 +93,27 @@ class FlaskConfig:
     # Logging
     LOG_LEVEL = settings.LOG_LEVEL
     LOG_FILE = settings.LOG_FILE
+    
+    # Swagger/OpenAPI Configuration
+    SWAGGER_TEMPLATE = {
+        "openapi": "3.0.0",
+        "info": {
+            "title": "Todo API",
+            "version": "1.0.0",
+            "description": "A RESTful API for managing todo projects and tasks with JWT authentication"
+        },
+        "components": {
+            "securitySchemes": {
+                "BearerAuth": {
+                    "type": "http",
+                    "scheme": "bearer",
+                    "bearerFormat": "JWT",
+                    "description": "Enter your JWT access token"
+                }
+            }
+        },
+        "security": [{"BearerAuth": []}]
+    }
 
 
 class DevelopmentConfig(FlaskConfig):
