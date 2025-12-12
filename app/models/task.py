@@ -1,8 +1,10 @@
-from app.extensions import db
+from app.core.extensions import db
 
 
 class Tasks(db.Model):
+    """Task model for individual work items."""
     __tablename__ = "tasks"
+    
     id = db.Column(db.Integer, primary_key=True)
     task_name = db.Column(db.String(128), nullable=False)
     description = db.Column(db.Text)
@@ -16,23 +18,6 @@ class Tasks(db.Model):
         db.TIMESTAMP, server_default=db.func.now(), onupdate=db.func.now()
     )
 
-    def serialize(self):
-        return {
-            "task_id": self.id,
-            "task_name": self.task_name,
-            "description": self.description,
-            "due_date": self.due_date,
-            "status": self.status,
-            "project_id": self.project_id,
-            "created_at": str(self.created_at),
-            "update_at": str(self.update_at),
-        }
+    def __repr__(self):
+        return f"<Task {self.task_name}>"
 
-    def basic_serialize(self):
-        return {
-            "task_name": self.task_name,
-            "description": self.description,
-            "due_date": self.due_date,
-            "status": self.status,
-            "update_at": str(self.update_at),
-        }

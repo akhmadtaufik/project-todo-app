@@ -6,22 +6,14 @@ It creates and configures a Flask application, initializes necessary
 extensions, registers blueprints for modular organization, and returns
 the configured app.
 """
-
-# Importing necessary components from different modules and packages.
-from app.auth import authBP
-from app.extensions import db, jwt, migrate
-from app.frontend import frontendBP
-from app.project import projectBP
-from app.task import taskBP
-from app.user import userBP
-from config import Config
 from flask import Flask
 
+from app.core.config import Config
+from app.core.extensions import db, jwt, migrate
 
-# Define the create_app function, allowing customization through
-# a provided config class.
+
 def create_app(config_class=Config):
-    # Create a Flask application.
+    """Create and configure the Flask application."""
     app = Flask(__name__)
 
     # Load configuration settings from the provided config class.
@@ -33,14 +25,12 @@ def create_app(config_class=Config):
     jwt.init_app(app)
     migrate.init_app(app, db)
 
-    # Frontend Blueprint
-    app.register_blueprint(frontendBP)
+    # Import and register API blueprints
+    from app.api import auth_bp, users_bp, projects_bp, tasks_bp
+    
+    app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    app.register_blueprint(users_bp, url_prefix="/api/users")
+    app.register_blueprint(projects_bp, url_prefix="/api/projects")
+    app.register_blueprint(tasks_bp, url_prefix="/api/project")
 
-    # Register modular blueprints to organize routes and views.
-    app.register_blueprint(authBP, url_prefix="/api/auth")
-    app.register_blueprint(userBP, url_prefix="/api/users")
-    app.register_blueprint(projectBP, url_prefix="/api/projects")
-    app.register_blueprint(taskBP, url_prefix="/api/project")
-
-    # Return the configured app instance.
     return app

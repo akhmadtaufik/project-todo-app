@@ -1,8 +1,10 @@
-from app.extensions import db
+from app.core.extensions import db
 
 
 class Projects(db.Model):
+    """Project model for organizing tasks."""
     __tablename__ = "projects"
+    
     id = db.Column(db.Integer, primary_key=True)
     project_name = db.Column(db.String(128), nullable=False)
     description = db.Column(db.Text)
@@ -16,20 +18,6 @@ class Projects(db.Model):
 
     tasks = db.relationship("Tasks", backref="projects", cascade="all, delete-orphan")
 
-    def serialize(self):
-        return {
-            "project_id": self.id,
-            "project_name": self.project_name,
-            "description": self.description,
-            "user_id": self.user_id,
-            "created_at": str(self.created_at),
-            "update_at": str(self.created_at),
-            "task": [task.serialize() for task in self.tasks],  # type: ignore
-        }
+    def __repr__(self):
+        return f"<Project {self.project_name}>"
 
-    def basic_serialize(self):
-        return {
-            "project_name": self.project_name,
-            "description": self.description,
-            "update_at": str(self.update_at),
-        }

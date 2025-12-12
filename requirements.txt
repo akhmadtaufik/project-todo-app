@@ -5,6 +5,7 @@ colorama==0.4.6
 Flask==3.0.0
 Flask-Migrate==4.0.5
 Flask-SQLAlchemy==3.1.1
+Flask-JWT-Extended==4.6.0
 greenlet==3.0.2
 importlib-metadata==7.0.0
 itsdangerous==2.1.2
@@ -16,3 +17,6 @@ typing_extensions==4.9.0
 Werkzeug==3.0.1
 zipp==3.17.0
 python-dotenv==1.0.0
+psycopg2-binary==2.9.9
+pydantic==2.5.2
+flask-cors==4.0.0
