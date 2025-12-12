@@ -23,14 +23,21 @@ def get_all_users():
     security:
       - BearerAuth: []
     parameters:
-      - name: limit
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+        description: Page number (1-indexed)
+      - name: per_page
         in: query
         schema:
           type: integer
           default: 10
           minimum: 1
           maximum: 100
-        description: Maximum number of users to return
+        description: Number of items per page
     responses:
       200:
         description: List of users retrieved successfully
@@ -47,7 +54,7 @@ def get_all_users():
                   items:
                     type: object
                     properties:
-                      id:
+                      user_id:
                         type: integer
                         example: 1
                       name:
@@ -56,18 +63,38 @@ def get_all_users():
                       email:
                         type: string
                         example: john@example.com
+                meta:
+                  type: object
+                  properties:
+                    page:
+                      type: integer
+                      example: 1
+                    per_page:
+                      type: integer
+                      example: 10
+                    total_pages:
+                      type: integer
+                      example: 5
+                    total_items:
+                      type: integer
+                      example: 50
       401:
         description: Missing or invalid token
       422:
-        description: Invalid limit parameter
+        description: Invalid pagination parameter
     """
     try:
-        limit = int(request.args.get("limit", 10))
+        page = int(request.args.get("page", 1))
+        per_page = int(request.args.get("per_page", 10))
     except ValueError:
-        return jsonify({"error": "Invalid parameter"}), 422
+        return jsonify({"success": False, "error": "Invalid pagination parameter"}), 422
 
-    users = UserService.get_all_users(limit)
-    return jsonify({"success": True, "data": users}), 200
+    result = UserService.get_all_users(page, per_page)
+    return jsonify({
+        "success": True,
+        "data": result["data"],
+        "meta": result["meta"]
+    }), 200
 
 
 @users_bp.route("/<int:user_id>", methods=["GET"], strict_slashes=False)

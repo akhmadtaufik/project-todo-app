@@ -15,15 +15,30 @@ class ProjectService:
     """Service class for project operations."""
 
     @staticmethod
-    def get_user_projects(user_id: str, limit: int = 10) -> List[dict]:
+    def get_user_projects(user_id: str, page: int = 1, per_page: int = 10) -> dict:
         """
         Get all projects for a user with pagination.
         
+        Args:
+            user_id: The user's ID
+            page: Page number (1-indexed)
+            per_page: Number of items per page
+        
         Returns:
-            List of project dictionaries
+            Dictionary with 'data' and 'meta' keys for paginated response
         """
-        projects = Projects.query.filter_by(user_id=user_id).limit(limit).all()
-        return [ProjectWithTasks.from_orm_project(p).model_dump() for p in projects]
+        pagination = Projects.query.filter_by(user_id=user_id).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        return {
+            "data": [ProjectWithTasks.from_orm_project(p).model_dump() for p in pagination.items],
+            "meta": {
+                "page": pagination.page,
+                "per_page": pagination.per_page,
+                "total_pages": pagination.pages,
+                "total_items": pagination.total
+            }
+        }
 
     @staticmethod
     def get_project_by_id(project_id: int) -> Optional[Projects]:

@@ -16,15 +16,19 @@ class UserService:
     """Service class for user operations."""
 
     @staticmethod
-    def get_all_users(limit: int = 10) -> List[dict]:
+    def get_all_users(page: int = 1, per_page: int = 10) -> dict:
         """
         Get all users with pagination.
         
+        Args:
+            page: Page number (1-indexed)
+            per_page: Number of items per page
+        
         Returns:
-            List of user dictionaries
+            Dictionary with 'data' and 'meta' keys for paginated response
         """
-        users = db.session.query(Users).limit(limit).all()
-        return [
+        pagination = Users.query.paginate(page=page, per_page=per_page, error_out=False)
+        data = [
             {
                 "user_id": user.id,
                 "name": user.name,
@@ -32,8 +36,17 @@ class UserService:
                 "created_at": str(user.created_at) if user.created_at else None,
                 "update_at": str(user.update_at) if user.update_at else None
             }
-            for user in users
+            for user in pagination.items
         ]
+        return {
+            "data": data,
+            "meta": {
+                "page": pagination.page,
+                "per_page": pagination.per_page,
+                "total_pages": pagination.pages,
+                "total_items": pagination.total
+            }
+        }
 
     @staticmethod
     def get_user_by_id(user_id: int) -> Optional[Users]:

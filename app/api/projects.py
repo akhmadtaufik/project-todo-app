@@ -23,14 +23,21 @@ def get_all_projects():
     security:
       - BearerAuth: []
     parameters:
-      - name: limit
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+        description: Page number (1-indexed)
+      - name: per_page
         in: query
         schema:
           type: integer
           default: 10
           minimum: 1
           maximum: 100
-        description: Maximum number of projects to return
+        description: Number of items per page
     responses:
       200:
         description: List of projects retrieved successfully
@@ -68,6 +75,21 @@ def get_all_projects():
                       update_at:
                         type: string
                         format: date-time
+                meta:
+                  type: object
+                  properties:
+                    page:
+                      type: integer
+                      example: 1
+                    per_page:
+                      type: integer
+                      example: 10
+                    total_pages:
+                      type: integer
+                      example: 5
+                    total_items:
+                      type: integer
+                      example: 50
       401:
         description: Missing or invalid token
       500:
@@ -75,11 +97,17 @@ def get_all_projects():
     """
     try:
         user_id = get_jwt_identity()
-        limit = int(request.args.get("limit", 10))
+        page = int(request.args.get("page", 1))
+        per_page = int(request.args.get("per_page", 10))
         
-        projects = ProjectService.get_user_projects(user_id, limit)
+        result = ProjectService.get_user_projects(user_id, page, per_page)
         
-        return generate_response(True, "Projects retrieved successfully", projects, 200)
+        return jsonify({
+            "success": True,
+            "message": "Projects retrieved successfully",
+            "data": result["data"],
+            "meta": result["meta"]
+        }), 200
     except SQLAlchemyError as e:
         return generate_response(False, f"Error retrieving projects: {str(e)}", status_code=500)
 
