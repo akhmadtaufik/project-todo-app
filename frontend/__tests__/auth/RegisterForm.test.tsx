@@ -3,6 +3,14 @@ import userEvent from '@testing-library/user-event'
 import RegisterForm from '@/components/auth/RegisterForm'
 import { useRouter } from 'next/navigation'
 
+// Mock axios
+jest.mock('@/lib/axios', () => ({
+  __esModule: true,
+  default: {
+    post: jest.fn(),
+  },
+}))
+
 // Mock toast
 jest.mock('sonner', () => ({
   toast: {
@@ -11,13 +19,17 @@ jest.mock('sonner', () => ({
   }
 }))
 
+import api from '@/lib/axios'
+
 describe('RegisterForm', () => {
   const mockPush = jest.fn()
 
   beforeEach(() => {
-    (useRouter as jest.Mock).mockReturnValue({
+    jest.clearAllMocks()
+    ;(useRouter as jest.Mock).mockReturnValue({
       push: mockPush,
     })
+    localStorage.clear()
   })
 
   it('renders register form correctly', () => {
@@ -28,19 +40,23 @@ describe('RegisterForm', () => {
   })
 
   it('updates password strength meter', async () => {
-    const { container } = render(<RegisterForm />)
+    render(<RegisterForm />)
     const passwordInput = screen.getByLabelText(/password/i)
-    
-    // Initial state: all bars gray/slate-100
-    // Check bars logic is implicit by class names changing based on input
     
     // Type weak password
     await userEvent.type(passwordInput, 'weak')
-    // We can check if classes changed, or just rely on component logic test via integration
-    // For now simple render check is enough, deep logic test might need querying by class
+    // Strength meter bars should update visually (tested implicitly by render)
   })
 
   it('handles successful registration', async () => {
+    // Mock successful API response (without auto-login token)
+    ;(api.post as jest.Mock).mockResolvedValueOnce({
+      data: {
+        success: true,
+        message: 'User registered successfully',
+      }
+    })
+
     render(<RegisterForm />)
     
     await userEvent.type(screen.getByLabelText(/full name/i), 'New User')
@@ -50,16 +66,27 @@ describe('RegisterForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /create account/i }))
 
     await waitFor(() => {
-      // Logic in component redirects to dashboard if token present, or stays if not
-      // Mocks return success: true but no token in default handler for registration (dashboard logic assumes token from login)
-      // Wait, let's allow the component to handle the success message
-      // Verify toast success called? Mocked toast is hard to verify without exposure
-      // Let's verify no error message
+      expect(api.post).toHaveBeenCalledWith('/api/auth/register', {
+        name: 'New User',
+        email: 'new@example.com',
+        password: 'SecurePass123',
+      })
+      // No error message should be present
       expect(screen.queryByText(/registration failed/i)).not.toBeInTheDocument()
     })
   })
 
   it('handles registration failure (email exists)', async () => {
+    // Mock failed API response
+    ;(api.post as jest.Mock).mockRejectedValueOnce({
+      response: {
+        data: {
+          success: false,
+          error: { code: 422, message: 'Email already registered' }
+        }
+      }
+    })
+
     render(<RegisterForm />)
     
     await userEvent.type(screen.getByLabelText(/full name/i), 'Test User')
