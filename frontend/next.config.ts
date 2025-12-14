@@ -6,6 +6,7 @@ import path from "path";
 config({ path: path.resolve(__dirname, "../.env") });
 
 const nextConfig: NextConfig = {
+  transpilePackages: ['msw', 'until-async', '@mswjs', '@open-draft', '@bundled-es-modules'],
   env: {
     // Server-side API URL (Docker network)
     API_URL: process.env.API_URL,
