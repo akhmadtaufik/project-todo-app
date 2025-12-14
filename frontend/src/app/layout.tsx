@@ -14,6 +14,11 @@ export const metadata: Metadata = {
   description: "Organize Projects. Execute Tasks. Repeat.",
 };
 
+import Providers from "./providers";
+import { Toaster } from "@/components/ui/sonner";
+
+// ...
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -22,7 +27,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${poppins.variable} font-sans antialiased`}>
-        {children}
+        <Providers>
+          {children}
+          <Toaster />
+        </Providers>
       </body>
     </html>
   );
