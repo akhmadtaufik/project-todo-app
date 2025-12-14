@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import api from "@/lib/axios";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 // Zod Schema
 const loginSchema = z.object({
@@ -34,14 +35,26 @@ export default function LoginForm() {
   });
 
   const onSubmit = async (data: LoginSchema) => {
-    setIsSubmitting(true);
     try {
-      await api.post("/api/auth/login", data);
-      router.push("/dashboard");
+      const response = await api.post("/api/auth/login", data);
+      
+      // Store tokens
+      if (response.data.access_token) {
+        localStorage.setItem("access_token", response.data.access_token);
+        localStorage.setItem("refresh_token", response.data.refresh_token);
+        toast.success("Welcome back!");
+        router.push("/dashboard");
+      }
     } catch (err: any) {
+       console.error("Login Error:", err.response?.data || err);
+       const errorMessage = err.response?.data?.error?.message || 
+                          err.response?.data?.message || 
+                          "Invalid credentials";
+                          
        setError("root", { 
-         message: err.response?.data?.message || "Invalid credentials" 
+         message: errorMessage
        });
+       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
