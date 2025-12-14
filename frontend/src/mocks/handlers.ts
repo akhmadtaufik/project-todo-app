@@ -1,10 +1,8 @@
 import { http, HttpResponse } from 'msw'
 
-const API_URL = 'http://localhost:5000/api'
-
 export const handlers = [
-  // LOGIN
-  http.post('*/auth/login', async ({ request }) => {
+  // LOGIN - matches both http://localhost:5000/api/auth/login and relative paths
+  http.post('*/api/auth/login', async ({ request }) => {
     const { email, password } = await request.json() as any
 
     if (email === 'user@example.com' && password === 'Password123') {
@@ -23,7 +21,7 @@ export const handlers = [
   }),
 
   // REGISTER
-  http.post('*/auth/register', async ({ request }) => {
+  http.post('*/api/auth/register', async ({ request }) => {
     const { email } = await request.json() as any
 
     if (email === 'exists@example.com') {
@@ -40,7 +38,7 @@ export const handlers = [
   }),
 
   // USER PROFILE
-  http.get('*/users/:id', () => {
+  http.get('*/api/users/:id', () => {
     return HttpResponse.json({
       id: 'user-123',
       name: 'Test User',
