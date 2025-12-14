@@ -9,6 +9,16 @@ jest.mock('jwt-decode', () => ({
   jwtDecode: jest.fn()
 }))
 
+// Mock axios
+jest.mock('@/lib/axios', () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn(),
+  },
+}))
+
+import api from '@/lib/axios'
+
 // Mock router
 const mockPush = jest.fn()
 jest.mock('next/navigation', () => ({
@@ -47,20 +57,29 @@ describe('Dashboard', () => {
     // Setup valid token
     localStorage.setItem('access_token', 'valid-token')
     ;(jwtDecode as jest.Mock).mockReturnValue({ sub: 'user-123' })
+    
+    // Mock API response
+    ;(api.get as jest.Mock).mockResolvedValueOnce({
+      data: {
+        id: 'user-123',
+        name: 'Test User',
+        email: 'user@example.com'
+      }
+    })
 
     const Wrapper = createWrapper()
     render(<Dashboard />, { wrapper: Wrapper })
 
-    // Should show loading initially
-    // expect(screen.getByRole('status')).toBeInTheDocument() // Loader has no role by default unless added
-
-    // Wait for "Welcome back, Test User" (from MSW handler)
+    // Wait for "Welcome back, Test User" (from API mock)
     await waitFor(() => {
       expect(screen.getByText(/Test User/i)).toBeInTheDocument()
     })
   })
 
   it('handles invalid token by redirecting', async () => {
+    // Suppress expected console.error for this test
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    
     localStorage.setItem('access_token', 'invalid-token')
     ;(jwtDecode as jest.Mock).mockImplementation(() => {
       throw new Error('Invalid token')
@@ -72,5 +91,7 @@ describe('Dashboard', () => {
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith('/auth')
     })
+    
+    consoleSpy.mockRestore()
   })
 })
