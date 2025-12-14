@@ -22,20 +22,13 @@ export default function AuthPage() {
     else if (hour >= 12 && hour < 18) setGreeting("Good Afternoon");
     else setGreeting("Evening Grind?");
 
-    // Fetch Lottie JSON
-    fetch("https://lottie.host/98642226-a4ca-4899-8j2k-838928374/animation.json") // Placeholder
-       .catch(() => {});
-       
-    // "Rocket" animation or similar work-related vector
-    fetch("https://assets9.lottiefiles.com/packages/lf20_wys2hpms.json")
-      .then((res) => res.json())
-      .then((data) => setAnimationData(data))
-      .catch((e) => console.error("Lottie Error", e));
+    // use local fallback or icon only to prevent CORS/XML errors from external fetches
+    // effectively skipping the fetch for reliability
   }, []);
 
   const toggleAuth = () => setIsLogin(!isLogin);
 
-  const springTransition = { type: "spring", stiffness: 100, damping: 20 };
+  const springTransition = { type: "spring" as const, stiffness: 100, damping: 20 };
 
   return (
     <div className="relative flex items-center justify-center min-h-screen p-4 overflow-hidden bg-slate-50 text-slate-900 selection:bg-blue-100">
