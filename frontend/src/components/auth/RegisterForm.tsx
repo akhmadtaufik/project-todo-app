@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import api from "@/lib/axios";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 // Zod Schema
 const registerSchema = z.object({
@@ -51,12 +52,30 @@ export default function RegisterForm() {
   const onSubmit = async (data: RegisterSchema) => {
     setIsSubmitting(true);
     try {
-      await api.post("/api/auth/register", data);
-      router.push("/dashboard");
+      const response = await api.post("/api/auth/register", data);
+      
+      if (response.data.access_token) {
+        // Auto login if token provided
+        localStorage.setItem("access_token", response.data.access_token);
+        localStorage.setItem("refresh_token", response.data.refresh_token);
+        toast.success("Account created! Logging in...");
+        router.push("/dashboard");
+      } else {
+        // Otherwise prompt login
+        toast.success("Account created successfully. Please log in.");
+        // Reload to reset state to login or just let user click
+        window.location.reload(); 
+      }
     } catch (err: any) {
+        console.error("Registration Error:", err.response?.data || err);
+        const errorMessage = err.response?.data?.error?.message || 
+                           err.response?.data?.message || 
+                           "Registration failed. Try again.";
+                           
         setError("root", { 
-           message: err.response?.data?.message || "Registration failed. Try again." 
+           message: errorMessage
         });
+        toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
