@@ -12,8 +12,9 @@ __pycache__
 venv/
 ENV/
 
-# Virtual environments
+# Environment files
 .env
+.env*
 .env.local
 *.env.*
 
@@ -23,11 +24,12 @@ ENV/
 *.swp
 *.swo
 
-# Testing
-.pytest_cache
+# Coverage and testing
 .coverage
+coverage/
 htmlcov/
-.tox
+.pytest_cache/
+.mypy_cache/
 
 # Build artifacts
 *.egg-info/
@@ -39,12 +41,49 @@ build/
 *.db
 *.sqlite3
 
-# Logs
+# Logs and temp files
 *.log
+*.tmp
+*.swp
+*.swo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
-# OS
+# Misc
 .DS_Store
 Thumbs.db
+*.pem
 
 # Docker
 docker-compose*.override.yml
+
+# Dependencies - Frontend (Node.js)
+frontend/node_modules/
+frontend/.pnp
+frontend/.pnp.*
+frontend/.yarn/*
+!frontend/.yarn/patches
+!frontend/.yarn/plugins
+!frontend/.yarn/releases
+!frontend/.yarn/versions
+
+# Distribution artifacts
+dist/
+build/
+target/
+*.tar.gz
+*.zip
+*.whl
+
+# Next.js specific (frontend)
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+
+# Production builds
+frontend/build
+
+# Vercel
+frontend/.vercel
