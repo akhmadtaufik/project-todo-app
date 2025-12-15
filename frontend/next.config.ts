@@ -6,12 +6,14 @@ import path from "path";
 config({ path: path.resolve(__dirname, "../.env") });
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   transpilePackages: ['msw', 'until-async', '@mswjs', '@open-draft', '@bundled-es-modules'],
   env: {
     // Server-side API URL (Docker network)
     API_URL: process.env.API_URL,
     // Client-side API URL (Browser) - NEXT_PUBLIC_ prefix auto-exposes to client
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    INTERNAL_API_URL: process.env.INTERNAL_API_URL,
   },
 };
 
