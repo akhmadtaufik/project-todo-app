@@ -5,12 +5,15 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - INTERNAL_API_URL=${INTERNAL_API_URL}
     depends_on:
       - web
+      - db
     restart: unless-stopped
+    networks:
+      - app-network
 
   web:
     build: .
@@ -26,6 +29,9 @@ services:
     command: python run.py
     restart: unless-stopped
 
+    networks:
+      - app-network
+
   db:
     image: postgres:15
     env_file:
@@ -40,6 +46,12 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - app-network
 
 volumes:
   postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
