@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Topbar } from "@/components/dashboard/Topbar";
 import { PageTransition } from "@/components/dashboard/PageTransition";
+import { FocusOverlay } from "@/components/dashboard/FocusOverlay"; // Import Overlay
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -16,6 +17,8 @@ export default function DashboardClientLayout({
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
+      <FocusOverlay /> {/* Mount Global Overlay */}
+      
       {/* Desktop Sidebar - hidden on mobile */}
       <div className="hidden md:flex flex-col w-64 fixed inset-y-0 z-50">
          <Sidebar />
