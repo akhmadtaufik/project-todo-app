@@ -25,3 +25,17 @@ global.ResizeObserver = jest.fn().mockImplementation(() => ({
   unobserve: jest.fn(),
   disconnect: jest.fn(),
 }))
+
+// Mock Framer Motion
+jest.mock('framer-motion', () => ({
+  ...jest.requireActual('framer-motion'),
+  motion: {
+    div: require('react').forwardRef(({ children, ...props }: any, ref: any) => {
+      return require('react').createElement('div', { ref, ...props }, children)
+    }),
+    span: require('react').forwardRef(({ children, ...props }: any, ref: any) => {
+      return require('react').createElement('span', { ref, ...props }, children)
+    }),
+  },
+  AnimatePresence: ({ children }: any) => require('react').createElement(require('react').Fragment, null, children),
+}))
