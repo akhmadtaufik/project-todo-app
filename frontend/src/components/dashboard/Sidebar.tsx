@@ -2,72 +2,63 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FolderKanban, Calendar, LogOut, Plus } from "lucide-react";
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { LayoutDashboard, FolderKanban, Calendar, LogOut, Plus, RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-
-interface Project {
-  _id: string;
-  name: string;
-  color?: string;
-}
+import { getProjects } from "@/services/project.service";
+import type { Project } from "@/types";
+import api from "@/lib/axios";
 
 interface User {
   name: string;
   email: string;
 }
 
+// Skeleton loader for project list items
+function ProjectSkeleton() {
+  return (
+    <div className="space-y-1">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div
+          key={i}
+          className="flex items-center gap-3 px-3 py-2 animate-pulse"
+        >
+          <div className="w-2 h-2 rounded-full bg-slate-200" />
+          <div className="h-4 flex-1 bg-slate-200 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function Sidebar({ className }: { className?: string }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>({ name: "Demo User", email: "demo@example.com" });
 
-  useEffect(() => {
-    // Mock user for now if API fails or is not ready
-    // intended: GET /api/users/me
-    const fetchUser = async () => {
-        try {
-            // Placeholder: Replace with actual API call
-             // const { data } = await axios.get("/api/users/me");
-             // setUser(data);
-             setUser({ name: "Demo User", email: "demo@example.com" });
-        } catch (error) {
-            console.error("Failed to fetch user", error);
-        }
-    };
-    
-    // intended: GET /api/projects?limit=5
-    const fetchProjects = async () => {
-      try {
-        // Placeholder: Replace with actual API call
-        // const { data } = await axios.get("/api/projects?limit=5");
-        // setProjects(data);
-        setProjects([
-            { _id: "1", name: "Website Redesign", color: "#3b82f6" },
-            { _id: "2", name: "Mobile App", color: "#10b981" },
-            { _id: "3", name: "Audit Logs", color: "#f59e0b" },
-        ]);
-      } catch (error) {
-        console.error("Failed to fetch projects", error);
-      }
-    };
-
-    fetchUser();
-    fetchProjects();
-  }, []);
+  // Fetch projects using TanStack Query
+  const {
+    data: projects = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ["sidebar-projects"],
+    queryFn: () => getProjects({ limit: 5 }),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
 
   const handleLogout = async () => {
     try {
-      await axios.post("/api/auth/logout");
-      // Clear local storage if token stored there
-      localStorage.removeItem("token"); 
+      await api.post("/api/auth/logout");
+      localStorage.removeItem("access_token");
       router.push("/auth");
     } catch (error) {
       console.error("Logout failed", error);
-      // Force redirect anyway
       router.push("/auth");
     }
   };
@@ -77,6 +68,57 @@ export function Sidebar({ className }: { className?: string }) {
     { href: "/dashboard/projects", label: "All Projects", icon: FolderKanban },
     { href: "/dashboard/calendar", label: "Calendar", icon: Calendar },
   ];
+
+  // Render project list content based on state
+  const renderProjectList = () => {
+    if (isLoading) {
+      return <ProjectSkeleton />;
+    }
+
+    if (isError) {
+      return (
+        <div className="flex items-center gap-2 px-3 py-2 text-sm text-slate-500">
+          <span className="flex-1 text-xs">Could not load projects</span>
+          <button
+            onClick={() => refetch()}
+            className="text-slate-400 hover:text-indigo-600 transition-colors p-1"
+            aria-label="Retry loading projects"
+          >
+            <RefreshCw className="w-3 h-3" />
+          </button>
+        </div>
+      );
+    }
+
+    if (projects.length === 0) {
+      return (
+        <div className="flex items-center gap-2 px-3 py-2 text-sm text-slate-400">
+          <span className="flex-1">No projects yet</span>
+          <Link
+            href="/dashboard/projects/new"
+            className="text-slate-400 hover:text-indigo-600 transition-colors p-1"
+            aria-label="Create new project"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      );
+    }
+
+    return projects.map((project: Project) => (
+      <Link
+        key={project.project_id}
+        href={`/dashboard/projects/${project.project_id}`}
+        className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+      >
+        <span
+          className="w-2 h-2 rounded-full"
+          style={{ backgroundColor: "#6366f1" }}
+        />
+        {project.project_name}
+      </Link>
+    ));
+  };
 
   return (
     <aside className={cn("flex flex-col h-full border-r border-white/20 bg-white/30 backdrop-blur-md shadow-sm w-64 transition-all duration-300", className)}>
@@ -116,28 +158,15 @@ export function Sidebar({ className }: { className?: string }) {
         <div className="space-y-1">
           <div className="flex items-center justify-between px-2 mb-2">
              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Quick Projects</p>
-             <button className="text-slate-400 hover:text-indigo-600 transition-colors">
+             <Link
+               href="/dashboard/projects/new"
+               className="text-slate-400 hover:text-indigo-600 transition-colors"
+             >
                 <Plus className="w-3 h-3" />
-             </button>
+             </Link>
           </div>
           
-          {projects.length === 0 ? (
-            <div className="px-3 text-sm text-slate-400">No recent projects</div>
-          ) : (
-            projects.map((project) => (
-              <Link
-                key={project._id}
-                href={`/dashboard/projects/${project._id}`}
-                className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
-              >
-                <span 
-                    className="w-2 h-2 rounded-full" 
-                    style={{ backgroundColor: project.color || "#cbd5e1" }}
-                />
-                {project.name}
-              </Link>
-            ))
-          )}
+          {renderProjectList()}
         </div>
       </nav>
 
